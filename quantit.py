@@ -15,7 +15,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 model_id = "expansezero/llama232klonglora"
 
 tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=False) # bug with fast tokenizer
-model = AutoModelForCausalLM.from_pretrained(model_id, device_map='auto', max_memory={0: "77GB", 1: "77GB"}, low_cpu_mem_usage=True, torch_dtype=torch.float16) # we load the model in fp16 on purpose
+model = AutoModelForCausalLM.from_pretrained(model_id, device_map='auto', max_memory={0: "77GB", 1: "77GB", 2: "77GB"}, low_cpu_mem_usage=True, torch_dtype=torch.float16) # we load the model in fp16 on purpose
 
 import os
 import json
