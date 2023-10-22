@@ -5,7 +5,7 @@ from optimum.gptq import GPTQQuantizer
 dataset_id = "wikitext2"
 
 # GPTQ quantizer
-quantizer = GPTQQuantizer(bits=4, dataset=dataset_id, model_seqlen=4096)
+quantizer = GPTQQuantizer(bits=4, dataset=dataset_id, model_seqlen=32768)
 quantizer.quant_method = "gptq"
 
 import torch
