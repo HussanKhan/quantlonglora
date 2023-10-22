@@ -34,7 +34,7 @@ print("Loading Pre-trained Model and Tokenizer from Hugging Face...")
 # Hugging Face model id
 model_id = args.model
 tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=False)  # bug with fast tokenizer
-model = AutoModelForCausalLM.from_pretrained(model_id, device_map='auto', max_memory={0: "77GB", 1: "77GB", 2: "77GB"}, low_cpu_mem_usage=True, torch_dtype=torch.float16)
+model = AutoModelForCausalLM.from_pretrained(model_id, device_map='auto', max_memory={0: "77GB"}, low_cpu_mem_usage=True, torch_dtype=torch.float16)
 print("Pre-trained Model and Tokenizer loaded!")
 
 print("Quantizing the Model...")
