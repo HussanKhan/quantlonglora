@@ -1,70 +1,59 @@
-from optimum.gptq import GPTQQuantizer
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoTokenizer, TextGenerationPipeline
+from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
+import logging
+from datasets import load_dataset
+import pandas as pd
 import os
-import json
-import sys
-import argparse
-parser = argparse.ArgumentParser()
+import torch
 
-parser.add_argument("--model", help="model name")
+def format_prompt(instruction, output):
+    return f"""Below is an instruction that describes a task. 
+Write a response that appropriately completes the request.
 
-args = parser.parse_args()
+### Instruction:
+{instruction}
 
-# Ensure your script has the required modules
-if not all([module in sys.modules for module in ['optimum', 'torch', 'transformers']]):
-    raise ImportError("You must have optimum, torch, and transformers installed!")
+### Response:
+{output}
+"""
 
-# Dynamically determine the save folder based on the script's directory
-script_dir = os.path.dirname(os.path.abspath(__file__))
-save_folder = os.path.join(script_dir, "local")
-if not os.path.exists(save_folder):
-    os.makedirs(save_folder)
+data = load_dataset('Yukang/LongAlpaca-12k', split='train')
+df = pd.concat([pd.DataFrame(data['instruction'], columns=['instruction']), pd.DataFrame(data['output'], columns=['output'])], axis=1)
 
-print("Initializing GPTQ Quantizer...")
-# Dataset id from Hugging Face
-dataset_id = "wikitext2"
+df['instruction_len'] = df['instruction'].apply(lambda x: len(x))
+df['output_len'] = df['output'].apply(lambda x: len(x))
 
-# GPTQ quantizer
-quantizer = GPTQQuantizer(bits=4, dataset=dataset_id, model_seqlen=32768)
-quantizer.quant_method = "gptq"
-print("GPTQ Quantizer initialized!")
+df['prompt'] = df.apply(lambda x: format_prompt(x['instruction'], x['output']), axis=1)
 
-print("Loading Pre-trained Model and Tokenizer from Hugging Face...")
-# Hugging Face model id
-model_id = args.model
-tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=False)  # bug with fast tokenizer
-model = AutoModelForCausalLM.from_pretrained(model_id, device_map='auto', max_memory={0: "77GB"}, low_cpu_mem_usage=True, torch_dtype=torch.float16)
-print("Pre-trained Model and Tokenizer loaded!")
+logging.basicConfig(
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s", level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S"
+)
 
-print("Quantizing the Model...")
-# quantize the model
-quantized_model = quantizer.quantize_model(model, tokenizer)
-print("Model Quantized!")
+pretrained_model_dir = "expansezero/llama232klonglora"
+quantized_model_dir = "local"
 
-print("Saving Quantized Model to Disk...")
-# save the quantized model to disk
-quantized_model.save_pretrained(save_folder, safe_serialization=True)
-print(f"Quantized Model saved at {save_folder}!")
+tokenizer = AutoTokenizer.from_pretrained(pretrained_model_dir, use_fast=True)
+df.sort_values(by='output_len', inplace=True, ascending=False)
+print(df)
+print('--------------------------------')
+examples = [tokenizer(e) for e in df['prompt'].tolist()[:256]]
+print('Tokenizing finished')
 
-print("Loading and Saving Fresh, Fast Tokenizer...")
-# load fresh, fast tokenizer and save it to disk
-tokenizer = AutoTokenizer.from_pretrained(model_id).save_pretrained(save_folder)
-print("Fast Tokenizer saved!")
+quantize_config = BaseQuantizeConfig(
+    bits=4,  # quantize model to 4-bit
+    group_size=128,  # it is recommended to set the value to 128
+    desc_act=False,  # set to False can significantly speed up inference but the perplexity may slightly bad
+)
 
-print("Saving Quantize Configuration for TGI...")
-# save quantize_config.json for TGI
-with open(os.path.join(save_folder, "quantize_config.json"), "w", encoding="utf-8") as f:
-    quantizer.disable_exllama = False
-    json.dump(quantizer.to_dict(), f, indent=2)
-print("Quantize Configuration saved!")
+# load un-quantized model, by default, the model will always be loaded into CPU memory
+model = AutoGPTQForCausalLM.from_pretrained(pretrained_model_dir, quantize_config)
+print('Model loaded into CPU memory')
 
-print("Updating and Saving config.json...")
-with open(os.path.join(save_folder, "config.json"), "r", encoding="utf-8") as f:
-    config = json.load(f)
-config["quantization_config"]["disable_exllama"] = False
-with open(os.path.join(save_folder, "config.json"), "w", encoding="utf-8") as f:
-    json.dump(config, f, indent=2)
-print("config.json updated and saved!")
+# quantize model, the examples should be list of dict whose keys can only be "input_ids" and "attention_mask"
+model.quantize(examples)
 
-print("All operations completed successfully!")
+# save quantized model
+model.save_quantized(quantized_model_dir)
+
+# save quantized model using safetensors
+model.save_quantized(quantized_model_dir, use_safetensors=True)
