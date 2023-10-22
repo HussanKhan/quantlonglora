@@ -23,7 +23,7 @@ if not os.path.exists(save_folder):
 
 print("Initializing GPTQ Quantizer...")
 # Dataset id from Hugging Face
-dataset_id = "c4"
+dataset_id = "wikitext2"
 
 # GPTQ quantizer
 quantizer = GPTQQuantizer(bits=4, dataset=dataset_id, model_seqlen=32768)
