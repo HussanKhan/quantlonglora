@@ -3,6 +3,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import os
 import json
+import sys
 
 # Ensure your script has the required modules
 if not all([module in sys.modules for module in ['optimum', 'torch', 'transformers']]):
