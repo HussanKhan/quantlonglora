@@ -4,6 +4,12 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import os
 import json
 import sys
+import argparse
+parser = argparse.ArgumentParser()
+
+parser.add_argument("--model", help="model name")
+
+args = parser.parse_args()
 
 # Ensure your script has the required modules
 if not all([module in sys.modules for module in ['optimum', 'torch', 'transformers']]):
@@ -17,7 +23,7 @@ if not os.path.exists(save_folder):
 
 print("Initializing GPTQ Quantizer...")
 # Dataset id from Hugging Face
-dataset_id = "wikitext2"
+dataset_id = "c4"
 
 # GPTQ quantizer
 quantizer = GPTQQuantizer(bits=4, dataset=dataset_id, model_seqlen=32768)
@@ -26,7 +32,7 @@ print("GPTQ Quantizer initialized!")
 
 print("Loading Pre-trained Model and Tokenizer from Hugging Face...")
 # Hugging Face model id
-model_id = "expansezero/llama232klonglora"
+model_id = args.model
 tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=False)  # bug with fast tokenizer
 model = AutoModelForCausalLM.from_pretrained(model_id, device_map='auto', max_memory={0: "77GB", 1: "77GB", 2: "77GB"}, low_cpu_mem_usage=True, torch_dtype=torch.float16)
 print("Pre-trained Model and Tokenizer loaded!")
