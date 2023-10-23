@@ -75,7 +75,7 @@ def quantize(model_dir, output_dir, traindataset, bits, group_size, desc_act, da
         raise ValueError(f"Unsupported dtype: {dtype}")
 
     logger.info(f"Loading model from {model_dir} with trust_remote_code={trust_remote_code} and dtype={torch_dtype}")
-    model = AutoGPTQForCausalLM.from_pretrained(model_dir, quantize_config=quantize_config, low_cpu_mem_usage=True, torch_dtype=torch_dtype, trust_remote_code=trust_remote_code)
+    model = AutoGPTQForCausalLM.from_pretrained(model_dir, quantize_config=quantize_config, low_cpu_mem_usage=True, torch_dtype=torch_dtype, trust_remote_code=trust_remote_code, cache_dir='./workspace/quantlonglora')
 
     logger.info(f"Starting quantization to {output_dir} with use_triton={use_triton}")
     start_time = time.time()
